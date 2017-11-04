@@ -1,0 +1,195 @@
+#!/bin/bash
+
+#------------------------------------------------------------------------------------------------------------
+# MUP - MENU UP
+#
+# em: npoole@gmail.com
+# gh: https://github.com/npoole81/MUP
+#------------------------------------------------------------------------------------------------------------
+
+SCRIPT_NAME=$(basename "$0")
+SCRIPT_PATH="`dirname \"$0\"`"
+MENUDIR="$SCRIPT_PATH"
+MENUFILE="mup-menu.conf"
+
+if [ ! -z $1 ]; then
+    MENUCONF="$1"
+else
+    MENUCONF="$MENUDIR/$MENUFILE"
+fi
+
+TITLE="$SCRIPT_NAME"
+SUBTITLE=" #  - M A I N -  # "
+VERSION="1.0"
+
+#------------------------------------------------------------------------------------------------------------
+# Text color variables
+#------------------------------------------------------------------------------------------------------------
+black() { echo "$(tput setaf 0)$*$(tput setaf 9)"; }
+red() { echo "$(tput setaf 1)$*$(tput setaf 9)"; }
+green() { echo "$(tput setaf 2)$*$(tput setaf 9)"; }
+greenf() { printf "$(tput setaf 2)$*$(tput setaf 9)"; }
+yellow() { echo "$(tput setaf 3)$*$(tput setaf 9)"; }
+blue() { echo "$(tput setaf 4)$*$(tput setaf 9)"; }
+magenta() { echo "$(tput setaf 5)$*$(tput setaf 9)"; }
+cyan() { echo "$(tput setaf 6)$*$(tput setaf 9)"; }
+white() { echo "$(tput setaf 7)$*$(tput setaf 9)"; }
+
+#------------------------------------------------------------------------------------------------------------
+# Date Vars
+#------------------------------------------------------------------------------------------------------------
+DATE=`date +%Y-%m-%d-%H%M%S`
+TODAY=`date +%Y-%m-%d`
+
+
+#------------------------------------------------------------------------------------------------------------
+# BEGIN
+#------------------------------------------------------------------------------------------------------------
+
+# OPEN OUR CONFIG
+if [ ! -f "$MENUCONF" ]; then
+    echo "Could not open menu: $MENUCONF"
+    exit
+fi
+
+MAININDEX=0
+SUBINDEX=0
+while read line; do
+    if [[ $line =~ ^"["(.+)"]"$ ]]; then
+        TOPMENU[$MAININDEX]=${BASH_REMATCH[1]}
+        MAININDEX=$((MAININDEX+1))
+    elif [[ $line =~ ^([_[:alpha:]][_[:alnum:]]*)"="(.*) ]]; then
+        KEY=${BASH_REMATCH[1]}
+        VALUE=${BASH_REMATCH[2]}
+        if [ "exec" == "$KEY" ]; then
+            declare EXEC[$MAININDEX]="${VALUE}"
+        elif [ "callback" == "$KEY" ]; then
+            declare CALLBACK[$MAININDEX]="${VALUE}"
+        elif [ "help" == "$KEY" ]; then
+            declare HELP[$MAININDEX]=${VALUE}
+        fi
+    fi
+done < $MENUCONF
+# Add our QUIT menu
+MAININDEX=$((MAININDEX+1))
+QUITINDEX=$MAININDEX
+TOPMENU[$MAININDEX]="QUIT"
+
+#Debug
+#printf '%s\n' "${CONFIG[@]}"
+#printf '%s\n' "${TOPMENU[@]}"
+
+# Display Menu
+QUIT=0
+MENUCOUNT=${#TOPMENU[@]}
+while [ $QUIT -lt 1 -o $MENUCOUNT -ne $QUITINDEX ]
+do
+
+    ROW=3
+    COL=15
+
+    # HEADERS
+    tput clear
+
+    tput cup $ROW 15
+    ROW=$((ROW+1))
+    green "$TITLE - v. $VERSION"
+
+    tput cup $ROW 15
+    ROW=$((ROW+1))
+    yellow "Config: $MENUDIR/$MENUFILE"
+
+    tput sgr0
+    tput cup $ROW 15
+    ROW=$((ROW+1))
+
+    tput cup $ROW 17
+    # Set reverse video mode
+    tput rev
+    green $SUBTITLE
+    tput sgr0
+
+    ROW=$((ROW+2))
+
+    tput cup $ROW 15
+
+    INDEX=0
+    for i in "${!TOPMENU[@]}";
+    do
+        INDEX=$((INDEX+1))
+        MAIN=${TOPMENU[i]}
+        tput cup $ROW $COL
+        cyan $INDEX. $MAIN
+        ROW=$((ROW+1))
+    done
+
+    ROW=$((ROW+1))
+
+    # Set bold mode
+    tput bold
+    tput cup $ROW $COL
+    read -p "Enter your choice [1-$MENUCOUNT] " menuChoice
+    tput sgr0
+
+    if [[ $menuChoice == *"help"* ]]; then
+        tput clear
+        menuChoice=$(echo $menuChoice | sed 's/[^0-9]*//g')
+        HELP=${HELP[$menuChoice]}
+        if [ "" == "$HELP" ]; then
+            HELP =" Sorry, there's no help text available. "
+        fi
+
+        MAIN=${TOPMENU[i]}
+
+        greenf $HELP
+        echo ""
+        read -p "Enter to continue ... " enter
+        continue
+    fi
+
+    if [ ${#menuChoice} -lt 1 ]
+        then
+        continue
+    fi
+
+    EXEC=${EXEC[$menuChoice]}
+    MENUTXT=${TOPMENU[$menuChoice]}
+    CALLBACK=${CALLBACK[$menuChoice]}
+
+    if [ $menuChoice -eq $QUITINDEX ]
+    then
+        QUIT=1
+        continue
+    fi
+    if [ "" == "$EXEC" ]; then
+        red "Cound not find exec path for choice $MENUTXT in $MENUCONF"
+        read -p "Enter to continue ... " enter
+        continue
+    fi
+
+    echo "Running command: $EXEC"
+    eval ${EXEC}
+
+    if [ "" == "$EXEC" ]; then
+        exit
+    else
+        eval ${CALLBACK}
+        exit
+    fi
+done
+
+#reset the screen on exit
+
+if [ $TERM = "linux" ]
+
+    then
+
+    tput setb 0
+
+fi
+
+tput reset
+
+tput clear
+
+exit
