@@ -1,25 +1,34 @@
-# MUP (aka: 'Menu Up')
+# **MUP (aka: 'Menu Up')**
 
-#### What is it?
-
-It's a bash script that creates a selection menu from a configuration file.
+#### **What is it?**
+It's a bash script that generates a selection menu from a simple configuration file.
 
 ![it is what you want it to be](https://i.imgur.com/fFQs00f.png)
 
-#### Why is it?
+#### **Why is it?**
 
-Because it's easier than making an alias or digging specific commands out of a text file sitting on my desktop.
+Because it's easier than making an alias or copying and pasting commands.
 
-#### How to use mup
+#### **Usage**
 
-Drop the bash script with the menu.conf config file into any folder and then run it!
+Drop the bash script with the mup-menu.conf config file into any folder and then run it! 
 
-#### Soon ...
+#### **Config File**
 
-Version 1.1 allows config files to set a callback and then MUP can recursively call itself.  This is handy if you want to create submenus inside of MUP.
+You can pass a parameter to MUP to specify the config file to use.  This also let's you use MUP recurvisely and create sub-menus.
 
-Eg: 
-[Parent Menu Item]
-exec=mup /path/to/sub-menu.conf
-callback=mup
+```
+[Main Menu Item]
+exec=bin/mup bin/mup/sub-menu.conf
+```
+
+and then in bin/mup/sub-menu.conf
+
+```
+[Sub Menu Item]
+exec=date
+callback=bin/mup
+```
+
+Here we provide a "callback" to MUP itself (if no callback value is provided the default is an 'exit')
 
