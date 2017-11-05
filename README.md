@@ -63,7 +63,7 @@ In this example, after executing the command `date`, MUP will call itself (with 
 
 If no callback is set, after a menu item is selected MUP will exit. 
 
-#### *Help*
+#### **Help**
 
 And there's help ... for some reason ...
 
