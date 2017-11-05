@@ -30,5 +30,11 @@ exec=date
 callback=bin/mup
 ```
 
-Here we provide a "callback" to MUP itself (if no callback value is provided the default is an 'exit')
+Here we set a "callback" to MUP itself (if no callback value is provided the default is an 'exit')
+
+#### *Help*
+
+And there's help ... for some reason ...
+
+![Nobody will use this](https://i.imgur.com/2CpJ0Ij.png)
 
