@@ -63,4 +63,15 @@ In this example, after executing the command `date`, MUP will call itself (with 
 
 If no callback is set, after a menu item is selected MUP will exit. 
 
+#### *Help*
+
+And there's help ... for some reason ...
+
+![Nobody will use this](https://i.imgur.com/2CpJ0Ij.png)
+
+```
+[Setup: Upgrade]
+exec=php bin/magento setup:upgrade
+help=here is some help for setup:upgrade
+```
 
