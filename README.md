@@ -32,7 +32,7 @@ callback=bin/mup
 
 Here we set a "callback" to MUP itself (if no callback value is provided the default is an 'exit')
 
-#### *Help*
+#### **Help**
 
 And there's help ... for some reason ...
 
