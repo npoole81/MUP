@@ -3,7 +3,7 @@
 #### **What is it?**
 It's a bash script that generates a selection menu from a simple configuration file.
 
-![it is what you want it to be](https://i.imgur.com/rnpnxP3.png)
+![it is what you want it to be](https://i.imgur.com/CVvuyze.png)
 
 #### **Why is it?**
 
