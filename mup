@@ -136,7 +136,7 @@ do
         menuChoice=$(echo $menuChoice | sed 's/[^0-9]*//g')
         HELP=${HELP[$menuChoice]}
         if [ "" == "$HELP" ]; then
-            HELP =" Sorry, there's no help text available. "
+            HELP="Sorry, there's no help text available. "
         fi
 
         MAIN=${TOPMENU[i]}
