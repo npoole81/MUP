@@ -32,15 +32,15 @@ bash bin/mup/mup
 
 By default MUP looks for $EXECUTABLE_NAME-menu.conf in the same directory as the bash file.  That is, if you rename '*mup*' to '*foobar*' it will look for '*foobar-menu.conf*'. 
 
-You can pass a parameter to MUP to specify the config file to use.  
+You can pass a parameter to MUP to specify the config parameter (-c|--conf)file to use.  
 
-``` bash bin/mup/mup /home/$user/configFile.conf```
+``` bash bin/mup/mup -c /home/$user/configFile.conf```
 
 #### **SubMenus**
 You can use MUP recursively and create sub-menus.
 ```
 [Main Item]
-exec=bin/mup/mup bin/mup/sub-menu.conf
+exec=bin/mup/mup -c bin/mup/sub-menu.conf
 ```
 
 and then in bin/mup/sub-menu.conf

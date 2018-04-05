@@ -23,6 +23,11 @@ case $key in
     shift # past argument
     shift # past value
     ;;
+    -n|--no-interaction)
+    PARAM_NO_INTERACTION="1"
+    shift # past argument
+    shift # past value
+    ;;
     *)    # unknown option
     POSITIONAL+=("$1") # save it in an array for later
     shift # past argument
@@ -107,19 +112,23 @@ TOPMENU[$MAININDEX]="QUIT"
 #printf '%s\n' "${TOPMENU[@]}"
 
 if [ ! -z $PARAM_EXECUTE ]; then
-	
-	echo ""
-	echo "The following commands will be executed ..."
-	echo ""
 
-	for i in $(echo $PARAM_EXECUTE | sed "s/,/ /g")
-	do
-		EXEC_CMD=${EXEC[$i]}
-		echo "Command: $EXEC_CMD"
-	done
+    if [ "1" != "$PARAM_NO_INTERACTION" ]; then
+        echo ""
+        echo "The following commands will be executed ..."
+        echo ""
 
-	echo ""
-	read -p "Continue? [y/n]: " confirm
+        for i in $(echo $PARAM_EXECUTE | sed "s/,/ /g")
+        do
+            EXEC_CMD=${EXEC[$i]}
+            echo "Command: $EXEC_CMD"
+        done
+
+        echo ""
+        read -p "Continue? [y/n]: " confirm
+    else
+        confirm="y"
+    fi
 
 	if [ "y" == "$confirm" ]; then
 
