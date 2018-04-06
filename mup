@@ -7,20 +7,52 @@
 # gh: https://github.com/npoole81/MUP
 #------------------------------------------------------------------------------------------------------------
 
+POSITIONAL=()
+while [[ $# -gt 0 ]]
+do
+key="$1"
+
+case $key in
+    -c|--conf)
+    PARAM_MENUCONF="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -e|--execute)
+    PARAM_EXECUTE="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -n|--no-interaction)
+    PARAM_NO_INTERACTION="1"
+    shift # past argument
+    shift # past value
+    ;;
+    *)    # unknown option
+    POSITIONAL+=("$1") # save it in an array for later
+    shift # past argument
+    ;;
+esac
+done
+set -- "${POSITIONAL[@]}" # restore positional parameters
+
 SCRIPT_NAME=$(basename "$0")
 SCRIPT_PATH="`dirname \"$0\"`"
 MENUDIR="$SCRIPT_PATH"
-MENUFILE="mup-menu.conf"
+MENUFILE="$SCRIPT_NAME-menu.conf"
+OVERRIDE_DIR=".mup"
 
-if [ ! -z $1 ]; then
-    MENUCONF="$1"
+if [ ! -z $PARAM_MENUCONF ]; then
+    MENUCONF="$PARAM_MENUCONF"
+elif [ -f "$OVERRIDE_DIR/$MENUFILE" ]; then
+    MENUCONF="$OVERRIDE_DIR/$MENUFILE"
 else
     MENUCONF="$MENUDIR/$MENUFILE"
 fi
 
 TITLE="$SCRIPT_NAME"
 SUBTITLE=" #  - M A I N -  # "
-VERSION="1.0"
+VERSION="1.1"
 
 #------------------------------------------------------------------------------------------------------------
 # Text color variables
@@ -79,6 +111,38 @@ TOPMENU[$MAININDEX]="QUIT"
 #printf '%s\n' "${CONFIG[@]}"
 #printf '%s\n' "${TOPMENU[@]}"
 
+if [ ! -z $PARAM_EXECUTE ]; then
+
+    if [ "1" != "$PARAM_NO_INTERACTION" ]; then
+        echo ""
+        echo "The following commands will be executed ..."
+        echo ""
+
+        for i in $(echo $PARAM_EXECUTE | sed "s/,/ /g")
+        do
+            EXEC_CMD=${EXEC[$i]}
+            echo "Command: $EXEC_CMD"
+        done
+
+        echo ""
+        read -p "Continue? [y/n]: " confirm
+    else
+        confirm="y"
+    fi
+
+	if [ "y" == "$confirm" ]; then
+
+		for i in $(echo $PARAM_EXECUTE | sed "s/,/ /g")
+		do
+			EXEC_CMD=${EXEC[$i]}
+			echo "Running command $EXEC_CMD"
+			eval ${EXEC_CMD}
+		done
+
+		echo ""
+		exit
+	fi
+fi
 # Display Menu
 QUIT=0
 MENUCOUNT=${#TOPMENU[@]}

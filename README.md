@@ -22,28 +22,20 @@ Because it's easier than making an alias or copying and pasting commands.
 
 #### **Usage**
 
-Drop the bash script with the mup-menu.conf config file into any folder and then run it! 
+Drop the bash script in your $PATH along with mup-menu.conf and then run it! 
 
 ```
-bash bin/mup/mup
+mup
 ```
-
-#### **Config File**
-
-By default MUP looks for $EXECUTABLE_NAME-menu.conf in the same directory as the bash file.  That is, if you rename '*mup*' to '*foobar*' it will look for '*foobar-menu.conf*'. 
-
-You can pass a parameter to MUP to specify the config file to use.  
-
-``` bash bin/mup/mup /home/$user/configFile.conf```
 
 #### **SubMenus**
 You can use MUP recursively and create sub-menus.
 ```
 [Main Item]
-exec=bin/mup/mup bin/mup/sub-menu.conf
+exec=mup -c sub-menu.conf
 ```
 
-and then in bin/mup/sub-menu.conf
+and then in sub-menu.conf
 
 ```
 [Sub Menu Item]
@@ -57,21 +49,38 @@ In the config entry, you can provide a "callback" command which is used after a 
 ```
 [Sub Menu Item]
 exec=date
-callback=bin/mup/mup
+callback=mup
 ```
 In this example, after executing the command `date`, MUP will call itself (with the default menu). 
 
 If no callback is set, after a menu item is selected MUP will exit. 
 
-#### **Help**
+## **Supported Parameters**
 
-And there's help ... for some reason ...
+##### **Config File**
 
-![Nobody will use this](https://i.imgur.com/2CpJ0Ij.png)
+By default MUP looks for $EXECUTABLE_NAME-menu.conf in the same directory as the bash file.  That is, if you rename '*mup*' to '*foobar*' it will look for '*foobar-menu.conf*'. 
 
-```
-[Setup: Upgrade]
-exec=php bin/magento setup:upgrade
-help=here is some help for setup:upgrade
-```
+You can pass the conf parameter (-c|--conf) to MUP to specify the config file to use.  
 
+``` mup -c /home/$user/configFile.conf```
+
+##### **Local Config File**
+
+MUP will look for the file .mup/mup-menu.conf relative to the current working directory.  If that file exists, it will use it for the config file. 
+
+##### **Auto Execute**
+
+You can pass the execute parameter (-e|--execute) to MUP to specify a series of selections to run sequentially.
+
+``` mup -e 1,2,3```
+
+NOTE: This method does not execute callbacks.
+
+MUP will still confirm the commands it's about to run.
+
+##### **Auto Execute: No interaction**
+
+You can pass the no-interaction parameter (-n|--no-interaction) along with --execute to not require confirmation before running commands.
+
+``` mup -n -e 1,2,3```
