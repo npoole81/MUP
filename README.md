@@ -83,4 +83,4 @@ MUP will still confirm the commands it's about to run.
 
 You can pass the no-interaction parameter (-n|--no-interaction) along with --execute to not require confirmation before running commands.
 
-``` mup -n -e 1,2,3```
+``` mup -e 1,2,3 -n```
