@@ -42,6 +42,14 @@ MENUDIR="$SCRIPT_PATH"
 MENUFILE="$SCRIPT_NAME-menu.conf"
 OVERRIDE_DIR=".mup"
 
+echo "$PARAM_MENUCONF"
+echo "------------------"
+
+# If they pass the -c option with 'DEFAULT' use the standard conf file.
+if [[ $(tr "[:upper:]" "[:lower:]" <<<"$PARAM_MENUCONF") = $(tr "[:upper:]" "[:lower:]" <<<"default") ]]; then
+    PARAM_MENUCONF="$MENUFILE"
+fi
+
 if [ ! -z $PARAM_MENUCONF ]; then
     MENUCONF="$PARAM_MENUCONF"
 elif [ -f "$OVERRIDE_DIR/$MENUFILE" ]; then

@@ -1,4 +1,4 @@
-# **MUP (aka: 'Menu Up')**
+# **MUP 1.2 (aka: 'Menu Up')**
 
 #### **What is it?**
 It's a bash script that generates a selection menu from a simple configuration file.
@@ -63,11 +63,7 @@ By default MUP looks for $EXECUTABLE_NAME-menu.conf in the same directory as the
 
 You can pass the conf parameter (-c|--conf) to MUP to specify the config file to use.  
 
-``` mup -c /home/$user/configFile.conf```
-
-##### **Local Config File**
-
-MUP will look for the file .mup/mup-menu.conf relative to the current working directory.  If that file exists, it will use it for the config file. 
+``` mup -c /home/$user/configFile.conf``` 
 
 ##### **Auto Execute**
 
@@ -84,3 +80,13 @@ MUP will still confirm the commands it's about to run.
 You can pass the no-interaction parameter (-n|--no-interaction) along with --execute to not require confirmation before running commands.
 
 ``` mup -e 1,2,3 -n```
+
+## **Other Stuff**
+
+##### **Local Config File**
+
+MUP will look for the file .mup/mup-menu.conf relative to the current working directory and by default use it for the config file.
+
+You can bypass this by passing the config (-c|--config) parameter the value 'DEFAULT'.
+
+``` mup -c default```
