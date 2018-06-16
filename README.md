@@ -2,7 +2,7 @@
 #### **What is it?**
 It's a bash script that generates a selection menu from a simple configuration file.
 
-![it is what you want it to be](https://i.imgur.com/2FzEnfb.png)
+![it is what you want it to be](https://i.imgur.com/fVhS4Rt.png)
 
 **Config**: 
 ```

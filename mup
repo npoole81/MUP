@@ -192,7 +192,7 @@ do
 
     tput cup $ROW 15
     ROW=$((ROW+1))
-    yellow "Config: $MENUDIR/$MENUFILE"
+    yellow "Config: $MENUCONF"
 
     tput sgr0
     tput cup $ROW 15
