@@ -1,5 +1,4 @@
-# **MUP 1.2 (aka: 'Menu Up')**
-
+# **MUP (aka: 'Menu Up')**
 #### **What is it?**
 It's a bash script that generates a selection menu from a simple configuration file.
 

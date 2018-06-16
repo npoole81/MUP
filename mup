@@ -1,12 +1,31 @@
 #!/bin/bash
 
 #------------------------------------------------------------------------------------------------------------
-# MUP - MENU UP
+# MUP - MENU UP - v1.2
 #
 # em: npoole@gmail.com
 # gh: https://github.com/npoole81/MUP
 #------------------------------------------------------------------------------------------------------------
 
+#------------------------------------------------------------------------------------------------------------
+# Title and version variables
+#------------------------------------------------------------------------------------------------------------
+SUBTITLE="#  - MAIN MENU -  #"
+VERSION="1.2"
+
+#------------------------------------------------------------------------------------------------------------
+# MUP variables
+#------------------------------------------------------------------------------------------------------------
+SCRIPT_NAME=$(basename "$0" | tr '[:lower:]' '[:upper:]')
+SCRIPT_PATH="`dirname \"$0\"`"
+TITLE="$SCRIPT_NAME"
+MENUDIR="$SCRIPT_PATH"
+MENUFILE="$SCRIPT_NAME-menu.conf"
+OVERRIDE_DIR=".mup"
+
+#------------------------------------------------------------------------------------------------------------
+# Handle Parameters
+#------------------------------------------------------------------------------------------------------------
 POSITIONAL=()
 while [[ $# -gt 0 ]]
 do
@@ -36,20 +55,18 @@ esac
 done
 set -- "${POSITIONAL[@]}" # restore positional parameters
 
-SCRIPT_NAME=$(basename "$0")
-SCRIPT_PATH="`dirname \"$0\"`"
-MENUDIR="$SCRIPT_PATH"
-MENUFILE="$SCRIPT_NAME-menu.conf"
-OVERRIDE_DIR=".mup"
 
-echo "$PARAM_MENUCONF"
-echo "------------------"
-
+#------------------------------------------------------------------------------------------------------------
 # If they pass the -c option with 'DEFAULT' use the standard conf file.
+#------------------------------------------------------------------------------------------------------------
 if [[ $(tr "[:upper:]" "[:lower:]" <<<"$PARAM_MENUCONF") = $(tr "[:upper:]" "[:lower:]" <<<"default") ]]; then
     PARAM_MENUCONF="$MENUFILE"
 fi
 
+
+#------------------------------------------------------------------------------------------------------------
+# Set the location of the mup config file
+#------------------------------------------------------------------------------------------------------------
 if [ ! -z $PARAM_MENUCONF ]; then
     MENUCONF="$PARAM_MENUCONF"
 elif [ -f "$OVERRIDE_DIR/$MENUFILE" ]; then
@@ -57,10 +74,6 @@ elif [ -f "$OVERRIDE_DIR/$MENUFILE" ]; then
 else
     MENUCONF="$MENUDIR/$MENUFILE"
 fi
-
-TITLE="$SCRIPT_NAME"
-SUBTITLE=" #  - M A I N -  # "
-VERSION="1.2"
 
 #------------------------------------------------------------------------------------------------------------
 # Text color variables
@@ -81,7 +94,6 @@ white() { echo "$(tput setaf 7)$*$(tput setaf 9)"; }
 DATE=`date +%Y-%m-%d-%H%M%S`
 TODAY=`date +%Y-%m-%d`
 
-
 #------------------------------------------------------------------------------------------------------------
 # BEGIN
 #------------------------------------------------------------------------------------------------------------
@@ -92,6 +104,9 @@ if [ ! -f "$MENUCONF" ]; then
     exit
 fi
 
+#------------------------------------------------------------------------------------------------------------
+# Create the menu array from the config
+#------------------------------------------------------------------------------------------------------------
 MAININDEX=0
 SUBINDEX=0
 while read line; do
@@ -119,8 +134,12 @@ TOPMENU[$MAININDEX]="QUIT"
 #printf '%s\n' "${CONFIG[@]}"
 #printf '%s\n' "${TOPMENU[@]}"
 
+#------------------------------------------------------------------------------------------------------------
+# If they passed -e
+#------------------------------------------------------------------------------------------------------------
 if [ ! -z $PARAM_EXECUTE ]; then
 
+    # If they didnt pass -n, confirm the command about to be made.
     if [ "1" != "$PARAM_NO_INTERACTION" ]; then
         echo ""
         echo "The following commands will be executed ..."
@@ -138,6 +157,7 @@ if [ ! -z $PARAM_EXECUTE ]; then
         confirm="y"
     fi
 
+    # If they confirmed (or passed -n)
 	if [ "y" == "$confirm" ]; then
 
 		for i in $(echo $PARAM_EXECUTE | sed "s/,/ /g")
@@ -151,7 +171,10 @@ if [ ! -z $PARAM_EXECUTE ]; then
 		exit
 	fi
 fi
-# Display Menu
+
+#------------------------------------------------------------------------------------------------------------
+# Display the Menu
+#------------------------------------------------------------------------------------------------------------
 QUIT=0
 MENUCOUNT=${#TOPMENU[@]}
 while [ $QUIT -lt 1 -o $MENUCOUNT -ne $QUITINDEX ]
@@ -175,7 +198,7 @@ do
     tput cup $ROW 15
     ROW=$((ROW+1))
 
-    tput cup $ROW 17
+    tput cup $ROW 15
     # Set reverse video mode
     tput rev
     green $SUBTITLE
@@ -202,22 +225,6 @@ do
     tput cup $ROW $COL
     read -p "Enter your choice [1-$MENUCOUNT] " menuChoice
     tput sgr0
-
-    if [[ $menuChoice == *"help"* ]]; then
-        tput clear
-        menuChoice=$(echo $menuChoice | sed 's/[^0-9]*//g')
-        HELP=${HELP[$menuChoice]}
-        if [ "" == "$HELP" ]; then
-            HELP="Sorry, there's no help text available. "
-        fi
-
-        MAIN=${TOPMENU[i]}
-
-        greenf $HELP
-        echo ""
-        read -p "Enter to continue ... " enter
-        continue
-    fi
 
     if [ ${#menuChoice} -lt 1 ]
         then
