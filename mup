@@ -20,7 +20,7 @@ SCRIPT_NAME=$(basename "$0" | tr '[:lower:]' '[:upper:]')
 SCRIPT_PATH="`dirname \"$0\"`"
 TITLE="$SCRIPT_NAME"
 MENUDIR="$SCRIPT_PATH"
-MENUFILE="$SCRIPT_NAME-menu.conf"
+MENUFILE="$(tr [A-Z] [a-z] <<< "$SCRIPT_NAME-menu.conf")"
 OVERRIDE_DIR=".mup"
 
 #------------------------------------------------------------------------------------------------------------
