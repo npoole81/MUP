@@ -19,9 +19,13 @@ exec=php bin/magento setup:upgrade
 
 Because it's easier than making an alias or copying and pasting commands.
 
+#### **Installation**
+
+You can install via composer with ```composer install npoole81/mup```
+
 #### **Usage**
 
-Drop the bash script in your $PATH along with mup-menu.conf and then run it! 
+Just type 'mup' and you'll be given the default menu which you can customize or override.
 
 ```
 mup

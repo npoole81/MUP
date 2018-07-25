@@ -10,8 +10,8 @@
         }
     ],
     "bin": [
-        "mup",
-        "mup-menu.conf"
+        "bin/mup",
+        "bin/mup-menu.conf"
     ]
 }
 
