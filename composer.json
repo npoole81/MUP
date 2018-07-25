@@ -7,6 +7,9 @@
             "name":"Nathan Poole",
             "email":"npoole@gmail.com"
         }
+    ],
+    "bin": [
+        "bin/mup"
     ]
 }
 
