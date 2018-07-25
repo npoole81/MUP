@@ -1,5 +1,6 @@
 {
     "name": "npoole81/mup",
+    "version": "1.2",
     "description": "a bash script that generates a selection menu from a simple configuration file",
     "type": "package",
     "authors":[
