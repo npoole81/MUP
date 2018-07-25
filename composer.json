@@ -1,0 +1,12 @@
+{
+    "name": "npoole81/mup",
+    "description": "a bash script that generates a selection menu from a simple configuration file",
+    "type": "package",
+    "authors":[
+        {
+            "name":"Nathan Poole",
+            "email":"npoole@gmail.com"
+        }
+    ]
+}
+
