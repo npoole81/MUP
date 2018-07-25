@@ -21,7 +21,7 @@ Because it's easier than making an alias or copying and pasting commands.
 
 #### **Installation**
 
-You can install via composer with ```composer install npoole81/mup```
+You can install via composer with ```composer require npoole81/mup```
 
 #### **Usage**
 
