@@ -1,274 +1,398 @@
 #!/bin/bash
 
 #------------------------------------------------------------------------------------------------------------
-# MUP - MENU UP - v1.2
+# MUP - MENU UP - v2.0
 #
 # em: npoole@gmail.com
 # gh: https://github.com/npoole81/MUP
+#
+# Requires bash 3.2+ (works with the stock macOS bash).
 #------------------------------------------------------------------------------------------------------------
 
-#------------------------------------------------------------------------------------------------------------
-# Title and version variables
-#------------------------------------------------------------------------------------------------------------
+VERSION="2.0"
 SUBTITLE="#  - MAIN MENU -  #"
-VERSION="1.2"
 
 #------------------------------------------------------------------------------------------------------------
 # MUP variables
 #------------------------------------------------------------------------------------------------------------
-SCRIPT_NAME=$(basename "$0" | tr '[:lower:]' '[:upper:]')
-SCRIPT_PATH="`dirname \"$0\"`"
+SCRIPT_BASENAME=$(basename "$0")
+SCRIPT_NAME=$(printf '%s' "$SCRIPT_BASENAME" | tr '[:lower:]' '[:upper:]')
 TITLE="$SCRIPT_NAME"
-MENUDIR="$SCRIPT_PATH"
-MENUFILE="$(tr [A-Z] [a-z] <<< "$SCRIPT_NAME-menu.conf")"
+MENUFILE="$(printf '%s' "$SCRIPT_BASENAME" | tr '[:upper:]' '[:lower:]')-menu.conf"
 OVERRIDE_DIR=".mup"
+
+# resolve_link PATH -> follows symlinks until it reaches the real file.
+# Portable replacement for 'readlink -f', which older macOS lacks.
+resolve_link() {
+    local p=$1 target n=0
+    while [ -L "$p" ] && [ $n -lt 40 ]; do
+        target=$(readlink "$p") || break
+        case "$target" in
+            /*) p=$target ;;
+            *)  p="$(dirname "$p")/$target" ;;
+        esac
+        n=$((n+1))
+    done
+    printf '%s' "$p"
+}
+
+# The default menu lives next to the script. When mup is run through a link
+# (e.g. ~/.local/bin, /usr/local/bin, Composer's vendor/bin), use a menu next
+# to the link if there is one, otherwise the one next to the real script.
+SCRIPT_PATH=$(dirname "$0")
+SCRIPT_REAL_PATH=$(dirname "$(resolve_link "$0")")
+if [ -f "$SCRIPT_PATH/$MENUFILE" ] || [ ! -f "$SCRIPT_REAL_PATH/$MENUFILE" ]; then
+    MENUDIR="$SCRIPT_PATH"
+else
+    MENUDIR="$SCRIPT_REAL_PATH"
+fi
+
+#------------------------------------------------------------------------------------------------------------
+# Output helpers (colors only when writing to a terminal)
+#------------------------------------------------------------------------------------------------------------
+if [ -t 1 ] && tput sgr0 >/dev/null 2>&1; then
+    HAS_TTY=1
+else
+    HAS_TTY=0
+fi
+
+t() { [ "$HAS_TTY" = "1" ] && tput "$@" 2>/dev/null; }
+color() { local c=$1; shift; printf '%s%s%s\n' "$(t setaf "$c")" "$*" "$(t sgr0)"; }
+red()    { color 1 "$@"; }
+green()  { color 2 "$@"; }
+yellow() { color 3 "$@"; }
+cyan()   { color 6 "$@"; }
+dim()    { printf '%s%s%s' "$(t dim)" "$*" "$(t sgr0)"; }
+err()    { printf '%s: %s\n' "$SCRIPT_BASENAME" "$*" >&2; }
+
+usage() {
+    cat <<EOF
+$TITLE - Menu Up v$VERSION
+
+Usage: $SCRIPT_BASENAME [options]
+
+Options:
+  -c, --conf FILE         Use FILE as the menu config ("default" = $MENUDIR/$MENUFILE)
+  -e, --execute N[,N...]  Run menu item(s) N without showing the menu (e.g. -e 1,3)
+  -n, --no-interaction    With -e, skip the confirmation prompt
+  -l, --list              Print the menu items and exit
+  -h, --help              Show this help
+  -v, --version           Show the version
+
+Config lookup (first match wins):
+  1. --conf FILE
+  2. $OVERRIDE_DIR/$MENUFILE in the current directory or any parent directory
+  3. $MENUDIR/$MENUFILE
+
+Config format:
+  # comment
+  [Menu item name]
+  exec=command to run
+  callback=command to run afterwards (optional)
+  help=short description (optional)
+EOF
+}
 
 #------------------------------------------------------------------------------------------------------------
 # Handle Parameters
 #------------------------------------------------------------------------------------------------------------
-POSITIONAL=()
-while [[ $# -gt 0 ]]
-do
-key="$1"
+PARAM_MENUCONF=""
+PARAM_EXECUTE=""
+PARAM_NO_INTERACTION=""
+PARAM_LIST=""
 
-case $key in
-    -c|--conf)
-    PARAM_MENUCONF="$2"
-    shift # past argument
-    shift # past value
-    ;;
-    -e|--execute)
-    PARAM_EXECUTE="$2"
-    shift # past argument
-    shift # past value
-    ;;
-    -n|--no-interaction)
-    PARAM_NO_INTERACTION="1"
-    shift # past argument
-    shift # past value
-    ;;
-    *)    # unknown option
-    POSITIONAL+=("$1") # save it in an array for later
-    shift # past argument
-    ;;
-esac
+need_value() {
+    if [ $# -lt 2 ] || [ -z "$2" ]; then
+        err "option $1 requires a value"
+        exit 2
+    fi
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -c|--conf)           need_value "$@"; PARAM_MENUCONF="$2"; shift 2 ;;
+        --conf=*)            PARAM_MENUCONF="${1#*=}"; shift ;;
+        -e|--execute)        need_value "$@"; PARAM_EXECUTE="$2"; shift 2 ;;
+        --execute=*)         PARAM_EXECUTE="${1#*=}"; shift ;;
+        -n|--no-interaction) PARAM_NO_INTERACTION=1; shift ;;
+        -l|--list)           PARAM_LIST=1; shift ;;
+        -h|--help)           usage; exit 0 ;;
+        -v|--version)        echo "$TITLE v$VERSION"; exit 0 ;;
+        *)                   err "unknown option: $1"; echo "Try '$SCRIPT_BASENAME --help'." >&2; exit 2 ;;
+    esac
 done
-set -- "${POSITIONAL[@]}" # restore positional parameters
-
-
-#------------------------------------------------------------------------------------------------------------
-# If they pass the -c option with 'DEFAULT' use the standard conf file.
-#------------------------------------------------------------------------------------------------------------
-if [[ $(tr "[:upper:]" "[:lower:]" <<<"$PARAM_MENUCONF") = $(tr "[:upper:]" "[:lower:]" <<<"default") ]]; then
-    PARAM_MENUCONF="$MENUFILE"
-fi
-
 
 #------------------------------------------------------------------------------------------------------------
 # Set the location of the mup config file
 #------------------------------------------------------------------------------------------------------------
-if [ ! -z $PARAM_MENUCONF ]; then
+find_override() {
+    local dir
+    dir=$(pwd)
+    while :; do
+        if [ -f "$dir/$OVERRIDE_DIR/$MENUFILE" ]; then
+            echo "$dir/$OVERRIDE_DIR/$MENUFILE"
+            return 0
+        fi
+        [ "$dir" = "/" ] && return 1
+        dir=$(dirname "$dir")
+    done
+}
+
+if [ "$(printf '%s' "$PARAM_MENUCONF" | tr '[:upper:]' '[:lower:]')" = "default" ]; then
+    MENUCONF="$MENUDIR/$MENUFILE"
+elif [ -n "$PARAM_MENUCONF" ]; then
     MENUCONF="$PARAM_MENUCONF"
-elif [ -f "$OVERRIDE_DIR/$MENUFILE" ]; then
-    MENUCONF="$OVERRIDE_DIR/$MENUFILE"
+elif MENUCONF=$(find_override); then
+    :
 else
     MENUCONF="$MENUDIR/$MENUFILE"
 fi
 
-#------------------------------------------------------------------------------------------------------------
-# Text color variables
-#------------------------------------------------------------------------------------------------------------
-black() { echo "$(tput setaf 0)$*$(tput setaf 9)"; }
-red() { echo "$(tput setaf 1)$*$(tput setaf 9)"; }
-green() { echo "$(tput setaf 2)$*$(tput setaf 9)"; }
-greenf() { printf "$(tput setaf 2)$*$(tput setaf 9)"; }
-yellow() { echo "$(tput setaf 3)$*$(tput setaf 9)"; }
-blue() { echo "$(tput setaf 4)$*$(tput setaf 9)"; }
-magenta() { echo "$(tput setaf 5)$*$(tput setaf 9)"; }
-cyan() { echo "$(tput setaf 6)$*$(tput setaf 9)"; }
-white() { echo "$(tput setaf 7)$*$(tput setaf 9)"; }
-
-#------------------------------------------------------------------------------------------------------------
-# Date Vars
-#------------------------------------------------------------------------------------------------------------
-DATE=`date +%Y-%m-%d-%H%M%S`
-TODAY=`date +%Y-%m-%d`
-
-#------------------------------------------------------------------------------------------------------------
-# BEGIN
-#------------------------------------------------------------------------------------------------------------
-
-# OPEN OUR CONFIG
-if [ ! -f "$MENUCONF" ]; then
-    echo "Could not open menu: $MENUCONF"
-    exit
+if [ ! -f "$MENUCONF" ] || [ ! -r "$MENUCONF" ]; then
+    err "could not open menu: $MENUCONF"
+    exit 1
 fi
 
 #------------------------------------------------------------------------------------------------------------
-# Create the menu array from the config
+# Parse the config into parallel 0-based arrays
 #------------------------------------------------------------------------------------------------------------
-MAININDEX=0
-SUBINDEX=0
-while read line; do
-    if [[ $line =~ ^"["(.+)"]"$ ]]; then
-        TOPMENU[$MAININDEX]=${BASH_REMATCH[1]}
-        MAININDEX=$((MAININDEX+1))
-    elif [[ $line =~ ^([_[:alpha:]][_[:alnum:]]*)"="(.*) ]]; then
+NAMES=()
+EXECS=()
+CALLBACKS=()
+HELPS=()
+COUNT=0
+LINENO_CONF=0
+
+trim() {
+    local s=$1
+    s="${s#"${s%%[![:space:]]*}"}"
+    s="${s%"${s##*[![:space:]]}"}"
+    printf '%s' "$s"
+}
+
+while IFS= read -r line || [ -n "$line" ]; do
+    LINENO_CONF=$((LINENO_CONF+1))
+    line="${line%$'\r'}"
+    line=$(trim "$line")
+
+    case "$line" in ''|'#'*|';'*) continue ;; esac
+
+    if [[ $line =~ ^\[(.+)\]$ ]]; then
+        NAMES[$COUNT]=$(trim "${BASH_REMATCH[1]}")
+        EXECS[$COUNT]=""
+        CALLBACKS[$COUNT]=""
+        HELPS[$COUNT]=""
+        COUNT=$((COUNT+1))
+    elif [[ $line =~ ^([_[:alpha:]][_[:alnum:]]*)[[:space:]]*=(.*)$ ]]; then
         KEY=${BASH_REMATCH[1]}
-        VALUE=${BASH_REMATCH[2]}
-        if [ "exec" == "$KEY" ]; then
-            declare EXEC[$MAININDEX]="${VALUE}"
-        elif [ "callback" == "$KEY" ]; then
-            declare CALLBACK[$MAININDEX]="${VALUE}"
-        elif [ "help" == "$KEY" ]; then
-            declare HELP[$MAININDEX]=${VALUE}
+        VALUE=$(trim "${BASH_REMATCH[2]}")
+        if [ $COUNT -eq 0 ]; then
+            err "warning: $MENUCONF:$LINENO_CONF: '$KEY' appears before any [section]; ignored"
+            continue
         fi
+        i=$((COUNT-1))
+        case "$KEY" in
+            exec)     EXECS[$i]="$VALUE" ;;
+            callback) CALLBACKS[$i]="$VALUE" ;;
+            help)     HELPS[$i]="$VALUE" ;;
+            *)        err "warning: $MENUCONF:$LINENO_CONF: unknown key '$KEY'; ignored" ;;
+        esac
+    else
+        err "warning: $MENUCONF:$LINENO_CONF: could not parse line; ignored"
     fi
-done < $MENUCONF
-# Add our QUIT menu
-MAININDEX=$((MAININDEX+1))
-QUITINDEX=$MAININDEX
-TOPMENU[$MAININDEX]="QUIT"
+done < "$MENUCONF"
 
-#Debug
-#printf '%s\n' "${CONFIG[@]}"
-#printf '%s\n' "${TOPMENU[@]}"
+if [ $COUNT -eq 0 ]; then
+    err "no menu items found in $MENUCONF"
+    exit 1
+fi
+
+QUITINDEX=$((COUNT+1))
 
 #------------------------------------------------------------------------------------------------------------
-# If they passed -e
+# Helpers
 #------------------------------------------------------------------------------------------------------------
-if [ ! -z $PARAM_EXECUTE ]; then
 
-    # If they didnt pass -n, confirm the command about to be made.
-    if [ "1" != "$PARAM_NO_INTERACTION" ]; then
+# is_choice N -> true when N is a whole number between 1 and COUNT
+is_choice() {
+    case "$1" in ''|*[!0-9]*) return 1 ;; esac
+    [ "$1" -ge 1 ] && [ "$1" -le "$COUNT" ]
+}
+
+# run_item N -> runs exec (then callback) for 1-based item N; returns exec's exit status
+run_item() {
+    local idx=$(( $1 - 1 ))
+    local cmd="${EXECS[$idx]}"
+    local cb="${CALLBACKS[$idx]}"
+    local rc
+
+    if [ -z "$cmd" ]; then
+        red "No exec command for '${NAMES[$idx]}' in $MENUCONF"
+        return 1
+    fi
+
+    green "Running: ${NAMES[$idx]}"
+    echo "\$ $cmd"
+    eval "$cmd"
+    rc=$?
+
+    if [ -n "$cb" ]; then
+        eval "$cb"
+    fi
+
+    if [ $rc -ne 0 ]; then
+        red "'${NAMES[$idx]}' exited with status $rc"
+    fi
+    return $rc
+}
+
+restore_terminal() {
+    t sgr0
+    t cnorm
+}
+
+#------------------------------------------------------------------------------------------------------------
+# --list
+#------------------------------------------------------------------------------------------------------------
+if [ -n "$PARAM_LIST" ]; then
+    i=0
+    while [ $i -lt $COUNT ]; do
+        if [ -n "${HELPS[$i]}" ]; then
+            printf '%3d. %s  - %s\n' $((i+1)) "${NAMES[$i]}" "${HELPS[$i]}"
+        else
+            printf '%3d. %s\n' $((i+1)) "${NAMES[$i]}"
+        fi
+        i=$((i+1))
+    done
+    exit 0
+fi
+
+#------------------------------------------------------------------------------------------------------------
+# --execute
+#------------------------------------------------------------------------------------------------------------
+if [ -n "$PARAM_EXECUTE" ]; then
+    CHOICES=()
+    OLDIFS=$IFS
+    IFS=', '
+    for c in $PARAM_EXECUTE; do
+        [ -z "$c" ] && continue
+        if ! is_choice "$c"; then
+            IFS=$OLDIFS
+            err "invalid menu item '$c' (valid: 1-$COUNT; see '$SCRIPT_BASENAME --list')"
+            exit 2
+        fi
+        CHOICES+=("$c")
+    done
+    IFS=$OLDIFS
+
+    if [ ${#CHOICES[@]} -eq 0 ]; then
+        err "no menu items given to --execute"
+        exit 2
+    fi
+
+    if [ -z "$PARAM_NO_INTERACTION" ]; then
         echo ""
         echo "The following commands will be executed ..."
         echo ""
-
-        for i in $(echo $PARAM_EXECUTE | sed "s/,/ /g")
-        do
-            EXEC_CMD=${EXEC[$i]}
-            echo "Command: $EXEC_CMD"
+        for c in "${CHOICES[@]}"; do
+            echo "  $c. ${NAMES[$((c-1))]}"
+            echo "     \$ ${EXECS[$((c-1))]}"
         done
-
         echo ""
-        read -p "Continue? [y/n]: " confirm
-    else
-        confirm="y"
+        read -r -p "Continue? [y/N]: " confirm
+        case "$confirm" in
+            y|Y|yes|YES) ;;
+            *) echo "Aborted."; exit 1 ;;
+        esac
     fi
 
-    # If they confirmed (or passed -n)
-	if [ "y" == "$confirm" ]; then
-
-		for i in $(echo $PARAM_EXECUTE | sed "s/,/ /g")
-		do
-			EXEC_CMD=${EXEC[$i]}
-			echo "Running command $EXEC_CMD"
-			eval ${EXEC_CMD}
-		done
-
-		echo ""
-		exit
-	fi
+    for c in "${CHOICES[@]}"; do
+        run_item "$c" || exit $?
+    done
+    exit 0
 fi
 
 #------------------------------------------------------------------------------------------------------------
 # Display the Menu
 #------------------------------------------------------------------------------------------------------------
-QUIT=0
-MENUCOUNT=${#TOPMENU[@]}
-while [ $QUIT -lt 1 -o $MENUCOUNT -ne $QUITINDEX ]
-do
-
-    ROW=3
-    COL=15
-
-    # HEADERS
-    tput clear
-
-    tput cup $ROW 15
-    ROW=$((ROW+1))
-    green "$TITLE - v. $VERSION"
-
-    tput cup $ROW 15
-    ROW=$((ROW+1))
-    yellow "Config: $MENUCONF"
-
-    tput sgr0
-    tput cup $ROW 15
-    ROW=$((ROW+1))
-
-    tput cup $ROW 15
-    # Set reverse video mode
-    tput rev
-    green $SUBTITLE
-    tput sgr0
-
-    ROW=$((ROW+2))
-
-    tput cup $ROW 15
-
-    INDEX=0
-    for i in "${!TOPMENU[@]}";
-    do
-        INDEX=$((INDEX+1))
-        MAIN=${TOPMENU[i]}
-        tput cup $ROW $COL
-        cyan $INDEX. $MAIN
-        ROW=$((ROW+1))
-    done
-
-    ROW=$((ROW+1))
-
-    # Set bold mode
-    tput bold
-    tput cup $ROW $COL
-    read -p "Enter your choice [1-$MENUCOUNT] " menuChoice
-    tput sgr0
-
-    if [ ${#menuChoice} -lt 1 ]
-        then
-        continue
-    fi
-
-    EXEC=${EXEC[$menuChoice]}
-    MENUTXT=${TOPMENU[$menuChoice]}
-    CALLBACK=${CALLBACK[$menuChoice]}
-
-    if [ $menuChoice -eq $QUITINDEX ]
-    then
-        QUIT=1
-        continue
-    fi
-    if [ "" == "$EXEC" ]; then
-        red "Cound not find exec path for choice $MENUTXT in $MENUCONF"
-        read -p "Enter to continue ... " enter
-        continue
-    fi
-
-    echo "Running command: $EXEC"
-    eval ${EXEC}
-
-    if [ "" == "$EXEC" ]; then
-        exit
-    else
-        eval ${CALLBACK}
-        exit
-    fi
-done
-
-#reset the screen on exit
-
-if [ $TERM = "linux" ]
-
-    then
-
-    tput setb 0
-
+if [ ! -t 0 ]; then
+    err "no terminal for the interactive menu; use --execute or --list"
+    exit 2
 fi
 
-tput reset
+trap 'restore_terminal; echo; exit 130' INT TERM
 
-tput clear
+COL=15
+MESSAGE=""
 
-exit
+while :; do
+    ROW=3
+    t clear
+
+    t cup $ROW $COL; ROW=$((ROW+1))
+    green "$TITLE - v. $VERSION"
+
+    t cup $ROW $COL; ROW=$((ROW+2))
+    yellow "Config: $MENUCONF"
+
+    t cup $ROW $COL; ROW=$((ROW+2))
+    t rev
+    green "$SUBTITLE"
+    t sgr0
+
+    i=0
+    while [ $i -lt $COUNT ]; do
+        t cup $ROW $COL
+        printf '%s%2d. %s%s' "$(t setaf 6)" $((i+1)) "${NAMES[$i]}" "$(t sgr0)"
+        if [ -n "${HELPS[$i]}" ]; then
+            dim "  - ${HELPS[$i]}"
+        fi
+        echo
+        ROW=$((ROW+1))
+        i=$((i+1))
+    done
+    t cup $ROW $COL
+    printf '%s%2d. %s%s\n' "$(t setaf 6)" $QUITINDEX "QUIT" "$(t sgr0)"
+    ROW=$((ROW+2))
+
+    if [ -n "$MESSAGE" ]; then
+        t cup $ROW $COL
+        red "$MESSAGE"
+        MESSAGE=""
+    fi
+    ROW=$((ROW+1))
+
+    t cup $ROW $COL
+    t bold
+    read -r -p "Enter your choice [1-$QUITINDEX, q to quit] " menuChoice || { restore_terminal; echo; exit 0; }
+    t sgr0
+    menuChoice=$(trim "$menuChoice")
+
+    case "$menuChoice" in
+        '') continue ;;
+        q|Q|quit|QUIT|exit) break ;;
+    esac
+
+    if [ "$menuChoice" = "$QUITINDEX" ]; then
+        break
+    fi
+
+    if ! is_choice "$menuChoice"; then
+        MESSAGE="Invalid choice: $menuChoice"
+        continue
+    fi
+
+    if [ -z "${EXECS[$((menuChoice-1))]}" ]; then
+        MESSAGE="No exec command for '${NAMES[$((menuChoice-1))]}' in $MENUCONF"
+        continue
+    fi
+
+    trap - INT TERM
+    echo
+    run_item "$menuChoice"
+    exit $?
+done
+
+restore_terminal
+t clear
+exit 0

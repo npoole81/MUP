@@ -1,95 +1,173 @@
 # **MUP (aka: 'Menu Up')**
+
 #### **What is it?**
-It's a bash script that generates a selection menu from a simple configuration file.
+
+MUP is a bash script that turns a simple config file into a numbered selection menu. Each menu item runs a shell command. It works with any project, language or toolchain.
 
 ![it is what you want it to be](https://i.imgur.com/fVhS4Rt.png)
 
-**Config**: 
-```
-[Cache: Flush && Clean]
-exec=php bin/magento cache:flush && php bin/magento cache:clean
-
-[Setup: Upgrade]
-exec=php bin/magento setup:upgrade
-
-...
-```
-
 #### **Why is it?**
 
-Because it's easier than making an alias or copying and pasting commands.
+Every project has commands you run all the time and never quite remember: builds, tests, migrations, deploys, cache clears, log tails. MUP keeps them in one place, so you pick a number instead of retyping, aliasing or copying and pasting them.
 
 #### **Installation**
 
-You can install via composer with ```composer require npoole81/mup```
+Install with one command (macOS and Linux):
+
+```
+curl -fsSL https://raw.githubusercontent.com/npoole81/MUP/master/install.sh | bash
+```
+
+This puts `mup` and its default menu in `~/.local/bin` and tells you if that folder isn't on your `PATH`. To install somewhere else, or a specific version:
+
+```
+curl -fsSL https://raw.githubusercontent.com/npoole81/MUP/master/install.sh | MUP_INSTALL_DIR=/usr/local/bin bash
+curl -fsSL https://raw.githubusercontent.com/npoole81/MUP/master/install.sh | MUP_REF=2.0 bash
+```
+
+Running the installer again upgrades `mup`. If you've edited the default menu, it's kept and the new default is saved as `mup-menu.conf.new`.
+
+Or clone the repo and put `bin/` on your `PATH` (or link `bin/mup` into a folder that's already on it):
+
+```
+git clone https://github.com/npoole81/MUP.git
+ln -s "$PWD/MUP/bin/mup" ~/.local/bin/mup
+```
+
+For PHP projects you can install it with Composer:
+
+```
+composer require npoole81/mup
+```
+
+MUP needs bash 3.2 or newer, so the stock macOS bash works.
 
 #### **Usage**
 
-Just type 'mup' and you'll be given the default menu which you can customize or override.
+Type `mup` to open the menu. Enter a number to run that item, or `q` to quit.
 
 ```
 mup
 ```
 
-#### **SubMenus**
-You can use MUP recursively and create sub-menus.
-```
-[Main Item]
-exec=mup -c sub-menu.conf
-```
+## **Config File**
 
-and then in sub-menu.conf
+A menu config has one section per menu item:
 
 ```
-[Sub Menu Item]
-exec=date
+# Lines starting with # or ; are comments
+
+[Build]
+exec=make build
+help=compile the project
+
+[Run tests]
+exec=npm test
+
+[Start dev environment]
+exec=docker compose up -d && docker compose logs -f app
+
+[Tail the app log]
+exec=tail -f logs/app.log
 ```
 
-#### **Callbacks**
+| Key        | Required | Description                                             |
+|------------|----------|---------------------------------------------------------|
+| `[Name]`   | yes      | Starts a menu item. The text is what the menu shows.    |
+| `exec`     | yes      | The shell command to run.                               |
+| `callback` | no       | A command to run after `exec` finishes.                 |
+| `help`     | no       | A short description shown next to the item.             |
 
-In the config entry, you can provide a "callback" command which is used after a menu item is completed.
+Items are numbered in the order they appear in the file. Commands run from your current directory.
+
+## **Choosing a Config**
+
+MUP uses the first config it finds:
+
+1. The file passed with `-c` / `--conf`.
+2. `.mup/mup-menu.conf` in the current directory or any parent directory.
+3. `mup-menu.conf` next to the `mup` script. This is the default menu.
+
+#### **Per-project menus**
+
+Commit a `.mup/mup-menu.conf` to a project and anyone who runs `mup` inside it gets that project's menu:
 
 ```
-[Sub Menu Item]
-exec=date
-callback=mup
+my-project/
+├── .mup/
+│   └── mup-menu.conf
+├── src/
+└── ...
 ```
-In this example, after executing the command `date`, MUP will call itself (with the default menu). 
 
-If no callback is set, after a menu item is selected MUP will exit. 
+To ignore the project menu and use the default one:
 
-## **Supported Parameters**
+```
+mup -c default
+```
 
-##### **Config File**
+#### **Renaming the script**
 
-By default MUP looks for $EXECUTABLE_NAME-menu.conf in the same directory as the bash file.  That is, if you rename '*mup*' to '*foobar*' it will look for '*foobar-menu.conf*'. 
+MUP looks for a config named after itself. If you rename or copy `mup` to `ops`, it looks for `ops-menu.conf` (and `.mup/ops-menu.conf`). That lets you keep several independent menus side by side.
 
-You can pass the conf parameter (-c|--conf) to MUP to specify the config file to use.  
+## **Options**
 
-``` mup -c /home/$user/configFile.conf``` 
+```
+-c, --conf FILE         Use FILE as the menu config ("default" = the default menu)
+-e, --execute N[,N...]  Run menu item(s) N without showing the menu
+-n, --no-interaction    With -e, skip the confirmation prompt
+-l, --list              Print the menu items and exit
+-h, --help              Show help
+-v, --version           Show the version
+```
 
-##### **Auto Execute**
+#### **Run items directly**
 
-You can pass the execute parameter (-e|--execute) to MUP to specify a series of selections to run sequentially.
+Run one or more items by number. MUP shows the commands and asks for confirmation first:
 
-``` mup -e 1,2,3```
+```
+mup -e 1,2,3
+```
 
-NOTE: This method does not execute callbacks.
+Add `-n` to skip the confirmation, for scripts and CI:
 
-MUP will still confirm the commands it's about to run.
+```
+mup -e 1,2,3 -n
+```
 
-##### **Auto Execute: No interaction**
+Items run in the order given. If one fails, MUP stops and exits with that item's status. Use `mup -l` to see the item numbers.
 
-You can pass the no-interaction parameter (-n|--no-interaction) along with --execute to not require confirmation before running commands.
+## **Sub-menus**
 
-``` mup -e 1,2,3 -n```
+An item can open another menu:
 
-## **Other Stuff**
+```
+[Database...]
+exec=mup -c .mup/db-menu.conf
+```
 
-##### **Local Config File**
+and then in `.mup/db-menu.conf`:
 
-MUP will look for the file .mup/mup-menu.conf relative to the current working directory and by default use it for the config file.
+```
+[Migrate]
+exec=./scripts/migrate.sh
 
-You can bypass this by passing the config (-c|--config) parameter the value 'DEFAULT'.
+[Open a DB shell]
+exec=psql "$DATABASE_URL"
+```
 
-``` mup -c default```
+## **Callbacks**
+
+By default MUP exits after running an item. Use a `callback` to do something afterwards, such as returning to the menu:
+
+```
+[Show disk usage]
+exec=df -h
+callback=read -p "Press enter to continue..." _ && mup
+```
+
+The callback runs whether or not `exec` succeeded. MUP's exit status is the status of `exec`.
+
+## **License**
+
+MIT
