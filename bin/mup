@@ -79,6 +79,8 @@ Options:
   -h, --help              Show this help
   -v, --version           Show the version
 
+Short options can be combined, e.g. -en 1,2 is the same as -e 1,2 -n.
+
 Config lookup (first match wins):
   1. --conf FILE
   2. $OVERRIDE_DIR/$MENUFILE in the current directory or any parent directory
@@ -109,6 +111,34 @@ need_value() {
 }
 
 while [ $# -gt 0 ]; do
+    # Combined short options: -en 1,2 / -ne 1,2 / -nl ...
+    # Flags without a value come first; -c / -e take the following arguments in order.
+    if [[ $1 =~ ^-[cenlhv]{2,}$ ]]; then
+        flags=${1#-}
+        shift
+        plain=()
+        withval=()
+        while [ -n "$flags" ]; do
+            f=${flags:0:1}
+            flags=${flags:1}
+            case "$f" in
+                c|e) withval+=("-$f") ;;
+                *)   plain+=("-$f") ;;
+            esac
+        done
+        expanded=("${plain[@]}")
+        for f in "${withval[@]}"; do
+            if [ $# -eq 0 ]; then
+                err "option $f requires a value"
+                exit 2
+            fi
+            expanded+=("$f" "$1")
+            shift
+        done
+        set -- "${expanded[@]}" "$@"
+        continue
+    fi
+
     case "$1" in
         -c|--conf)           need_value "$@"; PARAM_MENUCONF="$2"; shift 2 ;;
         --conf=*)            PARAM_MENUCONF="${1#*=}"; shift ;;

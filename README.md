@@ -121,6 +121,8 @@ MUP looks for a config named after itself. If you rename or copy `mup` to `ops`,
 -v, --version           Show the version
 ```
 
+Short options can be combined: `-en 1,2` is the same as `-e 1,2 -n`.
+
 #### **Run items directly**
 
 Run one or more items by number. MUP shows the commands and asks for confirmation first:
@@ -133,6 +135,7 @@ Add `-n` to skip the confirmation, for scripts and CI:
 
 ```
 mup -e 1,2,3 -n
+mup -en 1,2,3
 ```
 
 Items run in the order given. If one fails, MUP stops and exits with that item's status. Use `mup -l` to see the item numbers.
